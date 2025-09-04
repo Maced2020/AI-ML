@@ -1,0 +1,14 @@
+torch>=2.0.0
+torchvision
+numpy
+opencv-python
+tensorboard
+tyro
+argparse
+msgpack
+jsonlines
+pywin32
+pynput
+pyautogui
+pygetwindow
+keyboard
