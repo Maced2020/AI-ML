@@ -90,3 +90,23 @@ def is_stale(threshold_seconds=2):
 def get_lives():
     mem = _read_memory()
     return mem.get("lives", None)
+
+def life_lost():
+    mem = _read_memory()
+    return mem.get("life_lost", False)
+
+def get_world():
+    mem = _read_memory()
+    return mem.get("world", 0)
+
+def get_level():
+    mem = _read_memory()
+    return mem.get("level", 0)
+
+def get_time_remaining():
+    mem = _read_memory()
+    return mem.get("time_remaining", 400)
+
+def get_score():
+    mem = _read_memory()
+    return mem.get("_score", 0)

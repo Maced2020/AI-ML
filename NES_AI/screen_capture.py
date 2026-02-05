@@ -2,28 +2,41 @@
 import pygetwindow as gw
 import pyautogui
 import numpy as np
-import cv2
+from PIL import Image
 from time import sleep
+from config import WINDOW_TITLE
 
-WINDOW_TITLE = "FCEUX 2.6.6: Super_Mario_Bros"
 
 def get_frame():
-    """
-    Capture a grayscale downsampled 84x84 frame from the emulator window.
-    """
-    try:
-        win = gw.getWindowsWithTitle(WINDOW_TITLE)[0]
-        if not win.isActive:
-            win.activate()
-            sleep(0.1)
+    """Capture a grayscale downsampled 84x84 frame from the emulator window using Pillow.
 
-        left, top, width, height = win.left, win.top, win.width, win.height
-        screenshot = pyautogui.screenshot(region=(left, top, width, height))
-        img = np.array(screenshot)[..., :3]  # Drop alpha channel
-        img = cv2.resize(img, (84, 84))
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        return img_gray / 255.0
+    Waits for window to be focused before capturing.
+    """
+    while True:
+        try:
+            win = gw.getWindowsWithTitle(WINDOW_TITLE)[0]
+            
+            # Check if window is focused
+            if not win.isActive:
+                print(f"⚠️ Window not focused - please click on the emulator window to continue...")
+                sleep(2)
+                continue
 
-    except IndexError:
-        print(f"[SCREEN] ❌ No window titled '{WINDOW_TITLE}' found.")
-        return np.zeros((84, 84))  # fallback
+            left, top, width, height = win.left, win.top, win.width, win.height
+            screenshot = pyautogui.screenshot(region=(left, top, width, height))
+
+            # screenshot is a PIL Image; convert, resize, and convert to grayscale
+            img = screenshot.convert('RGB')
+            img = img.resize((84, 84), Image.BILINEAR)
+            img_gray = img.convert('L')
+            arr = np.asarray(img_gray, dtype=np.uint8)
+            return arr / 255.0
+
+        except IndexError:
+            print(f"[SCREEN] ❌ No window titled '{WINDOW_TITLE}' found - waiting...")
+            sleep(2)
+            continue
+        except Exception as e:
+            print(f"[SCREEN] ⚠️ Error capturing frame: {e} - retrying...")
+            sleep(2)
+            continue

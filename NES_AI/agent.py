@@ -2,6 +2,9 @@
 # RL agent logic (DQN)
 
 import os
+# Force CPU-only PyTorch at import time to avoid GPU/CUDA DLL init issues on some systems
+os.environ.setdefault("TORCH_USE_CUDA", "0")
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -35,22 +38,25 @@ class Agent:
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
         self.gamma = 0.99
         self.epsilon = 1.0
-        self.epsilon_decay = 0.995
-        self.epsilon_min = 0.1
+        self.epsilon_decay = 0.999993  # Proper decay for 1500 episodes (~450k steps)
+        self.epsilon_min = 0.05
 
     def select_action(self, state, available_actions):
+        # Map available action strings to their indices in the full ACTIONS list
+        indices = [ACTIONS.index(a) for a in available_actions]
+
+        # Epsilon-greedy: choose a random available action (return full index)
         if np.random.rand() < self.epsilon:
-            return np.random.randint(len(available_actions))
+            return int(np.random.choice(indices))
 
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
         q_values = self.model(state)
 
-        # Map full Q-values to available_actions only
+        # Map full Q-values to available_actions only and return full index
         full_q_values = q_values[0].detach().cpu().numpy()
-        indices = [ACTIONS.index(a) for a in available_actions]
         filtered_q_values = full_q_values[indices]
-
-        return int(np.argmax(filtered_q_values))
+        best_rel = int(np.argmax(filtered_q_values))
+        return int(indices[best_rel])
 
     def train_step(self, buffer, batch_size=32):
         if len(buffer) < batch_size:
@@ -80,13 +86,25 @@ class Agent:
 
     def save_model(self, path="models/dqn_model.pth"):
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        torch.save(self.model.state_dict(), path)
-        print(f"✅ Model saved to {path}")
+        checkpoint = {
+            'model_state_dict': self.model.state_dict(),
+            'epsilon': self.epsilon
+        }
+        torch.save(checkpoint, path)
+        print(f"✅ Model saved to {path} (epsilon: {self.epsilon:.3f})")
 
     def load_model(self, path="models/dqn_model.pth"):
         if os.path.exists(path):
-            self.model.load_state_dict(torch.load(path, map_location=self.device))
+            checkpoint = torch.load(path, map_location=self.device)
+            # Handle both old format (just state_dict) and new format (checkpoint dict)
+            if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+                self.model.load_state_dict(checkpoint['model_state_dict'])
+                self.epsilon = checkpoint.get('epsilon', 1.0)
+                print(f"📦 Loaded model from {path} (epsilon: {self.epsilon:.3f})")
+            else:
+                # Old format - just model weights
+                self.model.load_state_dict(checkpoint)
+                print(f"📦 Loaded model from {path} (old format, epsilon reset to 1.0)")
             self.update_target()
-            print(f"📦 Loaded model from {path}")
         else:
             print(f"⚠️ No model found at {path}, starting fresh.")

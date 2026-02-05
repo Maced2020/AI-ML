@@ -1,7 +1,11 @@
 torch>=2.0.0
 torchvision
+# numpy is required by torch and image processing; install a wheel compatible with your Python version
 numpy
-opencv-python
+# Use Pillow + imageio instead of opencv to avoid heavy binary builds on some Python versions
+pillow
+imageio
+imageio-ffmpeg
 tensorboard
 tyro
 argparse
